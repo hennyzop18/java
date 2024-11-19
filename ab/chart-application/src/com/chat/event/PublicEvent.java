@@ -8,6 +8,8 @@ public class PublicEvent {
     private EventChat eventChat;
     private EventLogin eventLogin;
     private EventMenuLeft eventMenuLeft;
+    
+    private GroupEvent eventGroup;
 
     public static PublicEvent getInstance() {
         if (instance == null) {
@@ -17,9 +19,12 @@ public class PublicEvent {
     }
 
     private PublicEvent() {
-
+        eventGroup = new GroupEvent();
     }
-
+    public GroupEvent getEventGroup() {
+        return eventGroup;
+    }
+    
     public void addEventMain(EventMain event) {
         this.eventMain = event;
     }

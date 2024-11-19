@@ -10,6 +10,8 @@ import com.corundumstudio.socketio.listener.DisconnectListener;
 import com.chat.app.MessageType;
 import com.chat.model.Model_Client;
 import com.chat.model.Model_File;
+import com.chat.model.Model_Group;
+import com.chat.model.Model_Group_Member;
 import com.chat.model.Model_Login;
 import com.chat.model.Model_Message;
 import com.chat.model.Model_Package_Sender;
@@ -19,6 +21,7 @@ import com.chat.model.Model_Register;
 import com.chat.model.Model_Reques_File;
 import com.chat.model.Model_Send_Message;
 import com.chat.model.Model_User_Account;
+import com.mysql.jdbc.Connection;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,6 +38,9 @@ public class Service {
     private JTextArea textArea;
     private final int PORT_NUMBER = 9999;
     
+     private ServiceGroup groupService;
+    private Connection con;
+    
     public static Service getInstance(JTextArea textArea) {
         if (instance == null) {
             instance = new Service(textArea);
@@ -47,6 +53,9 @@ public class Service {
         serviceUser = new ServiceUser();
         serviceFile = new ServiceFIle();
         listClient = new ArrayList<>();
+        
+        this.groupService = new ServiceGroup(con);
+
     }
     
     public void startServer() {
@@ -59,6 +68,104 @@ public class Service {
                 textArea.append("One client connected\n");
             }
         });
+        
+        server.addEventListener("create_group", String.class, new DataListener<String>() {
+            @Override
+            public void onData(SocketIOClient sioc, String groupName, AckRequest ar) throws Exception {
+                try {
+                    Model_Group newGroup = groupService.createGroup(groupName);
+                    ar.sendAckData(true, newGroup);
+                    // Broadcast new group creation if needed
+                    server.getBroadcastOperations().sendEvent("new_group_created", newGroup);
+                } catch (SQLException e) {
+                    ar.sendAckData(false, "Group creation failed");
+                }
+            }
+        });
+
+        // Add member to a group
+        server.addEventListener("add_group_member", Model_Group_Member.class, new DataListener<Model_Group_Member>() {
+            @Override
+            public void onData(SocketIOClient sioc, Model_Group_Member groupMember, AckRequest ar) throws Exception {
+                try {
+                    Model_Group_Member addedMember = groupService.addGroupMember(groupMember.getGroupId(), groupMember.getUserId());
+                    ar.sendAckData(true, addedMember);
+                    // Notify group members about new member
+                    server.getBroadcastOperations().sendEvent("group_member_added", addedMember);
+                } catch (SQLException e) {
+                    ar.sendAckData(false, "Adding member failed");
+                }
+            }
+        });
+
+        // Get group details
+        server.addEventListener("get_group", Integer.class, new DataListener<Integer>() {
+            @Override
+            public void onData(SocketIOClient sioc, Integer groupId, AckRequest ar) throws Exception {
+                try {
+                    Model_Group group = groupService.getGroupById(groupId);
+                    if (group != null) {
+                        ar.sendAckData(true, group);
+                    } else {
+                        ar.sendAckData(false, "Group not found");
+                    }
+                } catch (SQLException e) {
+                    ar.sendAckData(false, "Error fetching group");
+                }
+            }
+        });
+
+        // Remove group member
+        server.addEventListener("remove_group_member", Model_Group_Member.class, new DataListener<Model_Group_Member>() {
+            @Override
+            public void onData(SocketIOClient sioc, Model_Group_Member groupMember, AckRequest ar) throws Exception {
+                try {
+                    boolean removed = groupService.removeGroupMember(groupMember.getGroupId(), groupMember.getUserId());
+                    ar.sendAckData(removed);
+                    if (removed) {
+                        // Notify group members about member removal
+                        server.getBroadcastOperations().sendEvent("group_member_removed", groupMember);
+                    }
+                } catch (SQLException e) {
+                    ar.sendAckData(false, "Removing member failed");
+                }
+            }
+        });
+
+        // Update group name
+        server.addEventListener("update_group_name", Model_Group.class, new DataListener<Model_Group>() {
+            @Override
+            public void onData(SocketIOClient sioc, Model_Group group, AckRequest ar) throws Exception {
+                try {
+                    boolean updated = groupService.updateGroupName(group.getId(), group.getName());
+                    ar.sendAckData(updated);
+                    if (updated) {
+                        // Broadcast group name update
+                        server.getBroadcastOperations().sendEvent("group_name_updated", group);
+                    }
+                } catch (SQLException e) {
+                    ar.sendAckData(false, "Updating group name failed");
+                }
+            }
+        });
+
+        // Delete group
+        server.addEventListener("delete_group", Integer.class, new DataListener<Integer>() {
+            @Override
+            public void onData(SocketIOClient sioc, Integer groupId, AckRequest ar) throws Exception {
+                try {
+                    boolean deleted = groupService.deleteGroup(groupId);
+                    ar.sendAckData(deleted);
+                    if (deleted) {
+                        // Notify about group deletion
+                        server.getBroadcastOperations().sendEvent("group_deleted", groupId);
+                    }
+                } catch (SQLException e) {
+                    ar.sendAckData(false, "Deleting group failed");
+                }
+            }
+        });
+        
         server.addEventListener("register", Model_Register.class, new DataListener<Model_Register>() {
             @Override
             public void onData(SocketIOClient sioc, Model_Register t, AckRequest ar) throws Exception {

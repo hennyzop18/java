@@ -1,6 +1,8 @@
 package com.chat.model;
 
 import java.sql.Timestamp;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class Model_Group_Member {
     
@@ -10,9 +12,29 @@ public class Model_Group_Member {
     private Timestamp joinedAt;
 
     // Constructors
-    public Model_Group_Member() {
+    public Model_Group_Member(Object json) {
+        JSONObject obj = (JSONObject) json;
+        try {
+            groupId = obj.getInt("groupId");
+            userId = obj.getInt("userId");     
+        } catch (JSONException e) {
+            System.err.println(e);
+        }
+        
     }
-
+    
+    
+    public JSONObject toJsonObject_group_member() {
+        try {
+            JSONObject json = new JSONObject();
+            json.put("GroupID", groupId);
+            json.put("UserID", userId);
+            return json;
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+    
     public Model_Group_Member(int groupId, int userId) {
         this.groupId = groupId;
         this.userId = userId;

@@ -1,7 +1,17 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.chat.model;
 
+/**
+ *
+ * @author leyen
+ */
 import java.sql.Timestamp;
 import java.util.List;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class Model_Group {
     private int id;
@@ -10,8 +20,26 @@ public class Model_Group {
     private List<Model_Group_Member> members; // Quan hệ 1-n với GroupMember
     
     // Constructor
-    public Model_Group() {
+    public Model_Group(Object json) {
+        JSONObject obj = (JSONObject) json;
+        try {
+            id = obj.getInt("GroupID");
+            name = obj.getString("GroupName");
+        } catch (JSONException e) {
+            System.err.println(e);
+        }
     }
+    
+    public JSONObject toJsonObject_group() {
+        try {
+            JSONObject json = new JSONObject();
+            json.put("GroupName", name);
+            return json;
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+    
 
     public Model_Group(String name) {
         this.name = name;

@@ -4,6 +4,8 @@ import com.chat.event.EventFileReceiver;
 import com.chat.event.PublicEvent;
 import com.chat.model.Model_File_Receiver;
 import com.chat.model.Model_File_Sender;
+import com.chat.model.Model_Group;
+import com.chat.model.Model_Group_Member;
 import com.chat.model.Model_Receive_Message;
 import com.chat.model.Model_Send_Message;
 import com.chat.model.Model_User_Account;
@@ -41,6 +43,47 @@ public class Service {
     public void startServer() {
         try {
             client = IO.socket("http://" + IP + ":" + PORT_NUMBER);
+            
+            client.on("new_group_created", new Emitter.Listener() {
+                @Override
+                public void call(Object... os) {
+                    Model_Group newGroup = new Model_Group(os[0]);
+                    PublicEvent.getInstance().getEventGroup().newGroupCreated(newGroup);
+                }
+            });
+
+            client.on("group_member_added", new Emitter.Listener() {
+                @Override
+                public void call(Object... os) {
+                    Model_Group_Member addedMember = new Model_Group_Member(os[0]);
+                    PublicEvent.getInstance().getEventGroup().groupMemberAdded(addedMember);
+                }
+            });
+
+            client.on("group_member_removed", new Emitter.Listener() {
+                @Override
+                public void call(Object... os) {
+                    Model_Group_Member removedMember = new Model_Group_Member(os[0]);
+                    PublicEvent.getInstance().getEventGroup().groupMemberRemoved(removedMember);
+                }
+            });
+
+            client.on("group_name_updated", new Emitter.Listener() {
+                @Override
+                public void call(Object... os) {
+                    Model_Group updatedGroup = new Model_Group(os[0]);
+                    PublicEvent.getInstance().getEventGroup().groupNameUpdated(updatedGroup);
+                }
+            });
+
+            client.on("group_deleted", new Emitter.Listener() {
+                @Override
+                public void call(Object... os) {
+                    int groupId = (Integer) os[0];
+                    PublicEvent.getInstance().getEventGroup().groupDeleted(groupId);
+                }
+            });
+            
             client.on("list_user", new Emitter.Listener() {
                 @Override
                 public void call(Object... os) {
@@ -82,6 +125,39 @@ public class Service {
         }
     }
 
+    
+    // Group interaction methods
+    public void createGroup(String groupName) {
+        client.emit("create_group", groupName);
+    }
+
+    public void addGroupMember(int groupId, int userId) {
+        Model_Group_Member member = new Model_Group_Member(groupId, userId);
+        client.emit("add_group_member", member.toJsonObject_group_member());
+    }
+
+    public void getGroupDetails(int groupId) {
+        client.emit("get_group", groupId);
+    }
+
+    public void removeGroupMember(int groupId, int userId) {
+        Model_Group_Member member = new Model_Group_Member(groupId, userId);
+        client.emit("remove_group_member", member.toJsonObject_group_member());
+    }
+
+    public void updateGroupName(int groupId, String newName) {
+        Model_Group group = new Model_Group(newName);
+        group.setId(groupId);
+        client.emit("update_group_name", group.toJsonObject_group());
+    }
+
+    public void deleteGroup(int groupId) {
+        client.emit("delete_group", groupId);
+    }
+    
+    
+    
+    
     public Model_File_Sender addFile(File file, Model_Send_Message message) throws IOException {
         Model_File_Sender data = new Model_File_Sender(file, client, message);
         message.setFile(data);
